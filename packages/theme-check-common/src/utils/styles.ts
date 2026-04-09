@@ -32,32 +32,48 @@ export function extractCSSClassNames(css: string): Set<string> {
   return classNames;
 }
 
+// Cache parsed CSS classes per URI to avoid re-reading and re-parsing the same liquid file.
+const liquidUriClassesCache = new Map<string, Promise<Set<string>>>();
+
 /** Read a Liquid file and extract CSS class names from its {% stylesheet %} tags. */
 export async function extractCSSClassesFromLiquidUri(
   uri: string,
   fs: AbstractFileSystem,
 ): Promise<Set<string>> {
-  const classes = new Set<string>();
-  try {
-    const source = await fs.readFile(uri);
-    const ast = toLiquidHtmlAST(source);
-    if (ast instanceof Error) return classes;
-    const cssStrings = visit<SourceCodeType.LiquidHtml, string>(ast, {
-      LiquidRawTag(node: LiquidRawTag) {
-        if (node.name === 'stylesheet') {
-          return node.body.value;
+  const cached = liquidUriClassesCache.get(uri);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    const classes = new Set<string>();
+    try {
+      const source = await fs.readFile(uri);
+      const ast = toLiquidHtmlAST(source);
+      if (ast instanceof Error) return classes;
+      const cssStrings = visit<SourceCodeType.LiquidHtml, string>(ast, {
+        LiquidRawTag(node: LiquidRawTag) {
+          if (node.name === 'stylesheet') {
+            return node.body.value;
+          }
+        },
+      });
+      for (const css of cssStrings) {
+        for (const cls of extractCSSClassNames(css)) {
+          classes.add(cls);
         }
-      },
-    });
-    for (const css of cssStrings) {
-      for (const cls of extractCSSClassNames(css)) {
-        classes.add(cls);
       }
+    } catch {
+      // File not found or parse error — skip
     }
-  } catch {
-    // File not found or parse error — skip
-  }
-  return classes;
+    return classes;
+  })();
+
+  liquidUriClassesCache.set(uri, promise);
+  return promise;
+}
+
+/** Clear the liquid URI classes cache. Exported for testing. */
+export function clearLiquidUriClassesCache(): void {
+  liquidUriClassesCache.clear();
 }
 
 /** Read a CSS asset file and extract class names from it. */

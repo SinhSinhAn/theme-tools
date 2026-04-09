@@ -5,6 +5,7 @@ import {
   HtmlSelfClosingElement,
 } from '@shopify/liquid-html-parser';
 import { LiquidCheckDefinition, Severity, SourceCodeType } from '../../types';
+import { AbstractFileSystem } from '../../AbstractFileSystem';
 import {
   extractCSSClassNames,
   extractCSSClassesFromLiquidUri,
@@ -17,6 +18,11 @@ import {
   getAllSnippetDescendantUris,
   getRenderedSnippetUris,
 } from '../../utils/traversal';
+
+// Cache expensive theme-wide computations per fs instance so they run once per check run, not per file.
+// WeakMap ensures the cache is garbage-collected when the fs instance is no longer referenced.
+const allThemeClassesCache = new WeakMap<AbstractFileSystem, Promise<Set<string>>>();
+const assetClassesCache = new WeakMap<AbstractFileSystem, Promise<Set<string>>>();
 
 export const ValidCSSClassWithinStylesheet: LiquidCheckDefinition = {
   meta: {
@@ -68,8 +74,11 @@ export const ValidCSSClassWithinStylesheet: LiquidCheckDefinition = {
         // Start with local CSS classes
         const inScopeClasses = new Set(localCSSClasses);
 
-        // 1. Extract CSS classes from all .css files in the assets folder
-        const assetClasses = await extractCSSClassesFromAssets(fs, toUri);
+        // 1. Extract CSS classes from all .css files in the assets folder (cached per fs instance)
+        if (!assetClassesCache.has(fs)) {
+          assetClassesCache.set(fs, extractCSSClassesFromAssets(fs, toUri));
+        }
+        const assetClasses = await assetClassesCache.get(fs)!;
         for (const cls of assetClasses) {
           inScopeClasses.add(cls);
         }
@@ -107,8 +116,11 @@ export const ValidCSSClassWithinStylesheet: LiquidCheckDefinition = {
           for (const cls of classes) inScopeClasses.add(cls);
         }
 
-        // 7. Collect ALL CSS classes defined anywhere in the theme
-        const allThemeClasses = await extractAllThemeCSSClasses(fs, toUri);
+        // 7. Collect ALL CSS classes defined anywhere in the theme (cached per fs instance)
+        if (!allThemeClassesCache.has(fs)) {
+          allThemeClassesCache.set(fs, extractAllThemeCSSClasses(fs, toUri));
+        }
+        const allThemeClasses = await allThemeClassesCache.get(fs)!;
 
         // 8. Only report classes that ARE defined somewhere in the theme but not in scope.
         //    Classes not defined anywhere (e.g. from CDNs, utility frameworks) are silently ignored.

@@ -1,6 +1,11 @@
-import { expect, describe, it } from 'vitest';
+import { expect, describe, it, beforeEach } from 'vitest';
 import { ValidCSSClassWithinStylesheet } from './index';
 import { check, runLiquidCheck } from '../../test';
+import { clearLiquidUriClassesCache } from '../../utils/styles';
+
+beforeEach(() => {
+  clearLiquidUriClassesCache();
+});
 
 describe('Module: ValidCSSClassWithinStylesheet', () => {
   const noDeps = {

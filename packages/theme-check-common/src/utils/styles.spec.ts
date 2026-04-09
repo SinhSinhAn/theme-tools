@@ -1,4 +1,4 @@
-import { expect, describe, it } from 'vitest';
+import { expect, describe, it, beforeEach } from 'vitest';
 import { toLiquidHtmlAST, NodeTypes } from '@shopify/liquid-html-parser';
 import {
   extractCSSClassNames,
@@ -7,8 +7,13 @@ import {
   extractCSSClassesFromAssets,
   extractAllThemeCSSClasses,
   collectUsedClasses,
+  clearLiquidUriClassesCache,
 } from './styles';
 import { MockFileSystem } from '../test/MockFileSystem';
+
+beforeEach(() => {
+  clearLiquidUriClassesCache();
+});
 
 describe('extractCSSClassNames', () => {
   it('extracts simple class selectors', () => {
