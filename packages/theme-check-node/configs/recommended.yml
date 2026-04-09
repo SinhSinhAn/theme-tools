@@ -144,6 +144,9 @@ UnusedDocParam:
 ValidBlockTarget:
   enabled: true
   severity: 0
+ValidCSSClassWithinStylesheet:
+  enabled: true
+  severity: 1
 ValidContentForArgumentTypes:
   enabled: true
   severity: 1

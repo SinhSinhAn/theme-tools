@@ -392,6 +392,12 @@ export interface Dependencies {
    * Returns an empty array if no files reference this file
    */
   getReferences?: (uri: string) => Promise<Reference[]>;
+
+  /**
+   * Get dependencies of a file (which files this file references/renders)
+   * Returns an empty array if no dependencies found
+   */
+  getDependencies?: (uri: string) => Promise<Reference[]>;
 }
 
 export type ValidateJSON = (

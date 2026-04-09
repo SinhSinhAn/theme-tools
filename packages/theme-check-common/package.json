@@ -32,6 +32,7 @@
     "line-column": "^1.0.2",
     "lodash": "^4.17.23",
     "minimatch": "^10.2.1",
+    "postcss": "^8.5.9",
     "vscode-json-languageservice": "^5.3.10",
     "vscode-uri": "^3.0.7"
   },

@@ -5,6 +5,7 @@ import {
   JSONValidator,
   LiquidSourceCode,
   Offense,
+  Reference,
   SectionSchema,
   Theme,
   ThemeBlockSchema,
@@ -19,6 +20,7 @@ import {
   path as pathUtils,
   toSchema,
 } from '@shopify/theme-check-common';
+import { buildThemeGraph, ThemeGraph } from '@shopify/theme-graph';
 import { ThemeLiquidDocsManager } from '@shopify/theme-check-docs-updater';
 import { isLiquidHtmlNode } from '@shopify/liquid-html-parser';
 import fs from 'node:fs/promises';
@@ -135,6 +137,22 @@ export async function themeCheckRun(
     ]),
   );
 
+  // Build theme graph for cross-file checks (e.g. ValidCSSClassWithinStylesheet)
+  const getSectionSchemaFn = async (name: string) => sectionSchemas.get(name)?.();
+  const getBlockSchemaFn = async (name: string) => blockSchemas.get(name)?.();
+
+  let themeGraph: ThemeGraph | undefined;
+  try {
+    themeGraph = await buildThemeGraph(config.rootUri, {
+      fs: NodeFileSystem,
+      getSectionSchema: getSectionSchemaFn as any,
+      getBlockSchema: getBlockSchemaFn as any,
+      getWebComponentDefinitionReference: () => undefined,
+    });
+  } catch {
+    // If graph building fails, cross-file checks will gracefully degrade
+  }
+
   const offenses = await coreCheck(theme, config, {
     fs: NodeFileSystem,
     themeDocset: themeLiquidDocsManager,
@@ -143,10 +161,22 @@ export async function themeCheckRun(
     // This is kind of gross, but we want those things to be lazy and called by name so...
     // In the language server, this is memo'ed in DocumentManager, but we don't have that kind
     // of luxury in CLI-mode.
-    getSectionSchema: async (name) => sectionSchemas.get(name)?.(),
-    getBlockSchema: async (name) => blockSchemas.get(name)?.(),
+    getSectionSchema: getSectionSchemaFn,
+    getBlockSchema: getBlockSchemaFn,
     getAppBlockSchema: async (name) => blockSchemas.get(name)?.() as any, // cheating... but TODO
     getDocDefinition: async (relativePath) => docDefinitions.get(relativePath)?.(),
+
+    async getReferences(uri: string): Promise<Reference[]> {
+      if (!themeGraph) return [];
+      const mod = themeGraph.modules[uri];
+      return mod?.references ?? [];
+    },
+
+    async getDependencies(uri: string): Promise<Reference[]> {
+      if (!themeGraph) return [];
+      const mod = themeGraph.modules[uri];
+      return mod?.dependencies ?? [];
+    },
   });
 
   return {

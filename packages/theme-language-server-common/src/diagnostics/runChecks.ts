@@ -72,6 +72,11 @@ export function makeRunChecks(
           return themeGraphManager.getReferences(uri);
         },
 
+        async getDependencies(uri: string): Promise<Reference[]> {
+          if (!themeGraphManager) return [];
+          return themeGraphManager.getDependencies(uri);
+        },
+
         // TODO should do something for app blocks?
         async getBlockSchema(name) {
           // We won't preload here. If it's available, we'll give it. Otherwise expect nothing.
