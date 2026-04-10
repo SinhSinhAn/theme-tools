@@ -1,5 +1,13 @@
 # @shopify/theme-check-common
 
+## 3.24.1
+
+### Patch Changes
+
+- e10da7cc: Fix UniqueStaticBlockId false positive when same block id is used with different variants
+- 020d34fd: Add support for color_palette input type
+- 69513792: Allow theme app extensions to use block-level completion items in snippets
+
 ## 3.24.0
 
 ### Minor Changes
